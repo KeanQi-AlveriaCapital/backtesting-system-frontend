@@ -63,6 +63,7 @@ export default function Page() {
 
     fetchData();
   }, [selectedSymbol]);
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -89,57 +90,55 @@ export default function Page() {
             </Breadcrumb>
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="p-4 space-y-8">
-            <div className="min-h-screen bg-gray-100 p-4">
-              <div className="max-w-7xl mx-auto">
-                {/* Header with controls */}
-                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <h1 className="text-2xl font-bold text-gray-900">
-                      Trading Dashboard
-                    </h1>
 
-                    <div className="flex gap-4">
-                      <select
-                        value={selectedSymbol}
-                        onChange={(e) => setSelectedSymbol(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="BTC">Bitcoin</option>
-                        <option value="ETH">Ethereum</option>
-                        <option value="AAPL">Apple</option>
-                      </select>
-
-                      <select
-                        value={chartType}
-                        onChange={(e) =>
-                          setChartType(e.target.value as "Line" | "Candlestick")
-                        }
-                        className="px-3 py-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="Line">Line Chart</option>
-                        <option value="Candlestick">Candlestick</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Main chart - 90% width as requested */}
-                <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    {selectedSymbol} Price Chart
-                  </h2>
-                  <TradingChart
-                    data={chartType === "Line" ? priceData : candleData}
-                    type={chartType}
-                    width="90%"
-                    height="500px"
-                    theme="light"
-                    className="mx-auto" // Center the 90% width chart
-                  />
-                </div>
+        {/* Main content area - this will fill remaining space */}
+        <div className="flex flex-1 flex-col p-4 pt-0">
+          {/* Header with controls */}
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h1 className="text-2xl font-bold text-gray-900">
+                Trading Dashboard
+              </h1>
+              <div className="flex gap-4">
+                <select
+                  value={selectedSymbol}
+                  onChange={(e) => setSelectedSymbol(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="BTC">Bitcoin</option>
+                  <option value="ETH">Ethereum</option>
+                  <option value="AAPL">Apple</option>
+                </select>
+                <select
+                  value={chartType}
+                  onChange={(e) =>
+                    setChartType(e.target.value as "Line" | "Candlestick")
+                  }
+                  className="px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="Line">Line Chart</option>
+                  <option value="Candlestick">Candlestick</option>
+                </select>
               </div>
+            </div>
+          </div>
+
+          {/* Chart container - this will fill remaining vertical space */}
+          <div className="bg-white rounded-lg shadow-md p-4 flex-1 flex flex-col">
+            <h2 className="text-xl font-semibold mb-4">
+              {selectedSymbol} Price Chart
+            </h2>
+            <div className="flex-1">
+              {" "}
+              {/* This div will fill remaining space */}
+              <TradingChart
+                data={chartType === "Line" ? priceData : candleData}
+                type={chartType}
+                width="90%"
+                height="100%" // Now 100% will work because parent has defined height
+                theme="light"
+                className="mx-auto"
+              />
             </div>
           </div>
         </div>

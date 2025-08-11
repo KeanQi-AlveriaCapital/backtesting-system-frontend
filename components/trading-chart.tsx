@@ -52,7 +52,6 @@ export default function TradingChart({
   const seriesRef = useRef<ISeriesApi<any> | null>(null);
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
 
-  // ResizeObserver to detect container size changes
   const updateSize = useCallback(() => {
     if (!chartContainerRef.current) return;
 
@@ -60,8 +59,8 @@ export default function TradingChart({
     const rect = container.getBoundingClientRect();
 
     const newWidth = rect.width;
-    const newHeight =
-      typeof height === "string" ? parseInt(height.replace("px", "")) : height;
+    // Fix: Use the actual container height instead of trying to parse the height prop
+    const newHeight = rect.height;
 
     if (newWidth !== chartSize.width || newHeight !== chartSize.height) {
       setChartSize({ width: newWidth, height: newHeight });
@@ -73,7 +72,7 @@ export default function TradingChart({
         });
       }
     }
-  }, [height, chartSize.width, chartSize.height]);
+  }, [chartSize.width, chartSize.height]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
