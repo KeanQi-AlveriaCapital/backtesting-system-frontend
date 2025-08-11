@@ -10,6 +10,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -25,6 +26,128 @@ export default function Page() {
   const [chartType, setChartType] = useState<"Line" | "Candlestick">(
     "Candlestick"
   );
+
+  const [tradingData] = useState([
+    {
+      symbol: "BTC",
+      price: "$67,245",
+      change: "+2.35%",
+      volume: "1.2B",
+      status: "active",
+    },
+    {
+      symbol: "ETH",
+      price: "$3,456",
+      change: "-1.24%",
+      volume: "892M",
+      status: "active",
+    },
+    {
+      symbol: "AAPL",
+      price: "$189.50",
+      change: "+0.87%",
+      volume: "45.6M",
+      status: "active",
+    },
+    {
+      symbol: "TSLA",
+      price: "$256.78",
+      change: "+3.21%",
+      volume: "89.3M",
+      status: "active",
+    },
+    {
+      symbol: "NVDA",
+      price: "$876.32",
+      change: "+5.67%",
+      volume: "134.7M",
+      status: "active",
+    },
+    {
+      symbol: "MSFT",
+      price: "$412.18",
+      change: "-0.45%",
+      volume: "23.8M",
+      status: "active",
+    },
+    {
+      symbol: "GOOGL",
+      price: "$165.43",
+      change: "+1.89%",
+      volume: "34.2M",
+      status: "active",
+    },
+    {
+      symbol: "AMZN",
+      price: "$178.92",
+      change: "+2.14%",
+      volume: "56.7M",
+      status: "active",
+    },
+    {
+      symbol: "META",
+      price: "$487.65",
+      change: "-0.78%",
+      volume: "41.9M",
+      status: "active",
+    },
+    {
+      symbol: "NFLX",
+      price: "$598.43",
+      change: "+4.32%",
+      volume: "12.4M",
+      status: "active",
+    },
+    {
+      symbol: "AMD",
+      price: "$143.87",
+      change: "+2.98%",
+      volume: "67.8M",
+      status: "active",
+    },
+    {
+      symbol: "INTC",
+      price: "$28.45",
+      change: "-1.67%",
+      volume: "89.2M",
+      status: "active",
+    },
+    {
+      symbol: "INTC",
+      price: "$28.45",
+      change: "-1.67%",
+      volume: "89.2M",
+      status: "active",
+    },
+    {
+      symbol: "INTC",
+      price: "$28.45",
+      change: "-1.67%",
+      volume: "89.2M",
+      status: "active",
+    },
+    {
+      symbol: "INTC",
+      price: "$28.45",
+      change: "-1.67%",
+      volume: "89.2M",
+      status: "active",
+    },
+    {
+      symbol: "INTC",
+      price: "$28.45",
+      change: "-1.67%",
+      volume: "89.2M",
+      status: "active",
+    },
+    {
+      symbol: "INTC",
+      price: "$28.45",
+      change: "-1.67%",
+      volume: "89.2M",
+      status: "active",
+    },
+  ]);
 
   // Simulate data fetching
   useEffect(() => {
@@ -123,22 +246,69 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Chart container - this will fill remaining vertical space */}
-          <div className="bg-white rounded-lg shadow-md p-4 flex-1 flex flex-col">
-            <h2 className="text-xl font-semibold mb-4">
-              {selectedSymbol} Price Chart
-            </h2>
-            <div className="flex-1">
-              {" "}
-              {/* This div will fill remaining space */}
-              <TradingChart
-                data={chartType === "Line" ? priceData : candleData}
-                type={chartType}
-                width="90%"
-                height="100%" // Now 100% will work because parent has defined height
-                theme="light"
-                className="mx-auto"
-              />
+          <div className="flex flex-col lg:flex-row gap-4 flex-1">
+            {/* Chart Section */}
+            <div className="bg-white rounded-lg shadow-md p-4 flex-1 flex flex-col lg:order-1">
+              <h2 className="text-xl font-semibold mb-4">
+                {selectedSymbol} Price Chart
+              </h2>
+              <div className="flex-1 min-h-[400px]">
+                <TradingChart
+                  data={chartType === "Line" ? priceData : candleData}
+                  type={chartType}
+                  width="100%"
+                  height="100%"
+                  theme="light"
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
+
+            {/* Trading List Section - Responsive positioning */}
+            <div className="bg-white rounded-lg shadow-md p-4 lg:w-80 lg:order-2 order-first lg:order-last">
+              <h3 className="text-lg font-semibold mb-4">Market Watch</h3>
+              <ScrollArea className="h-[70vh] w-full pr-4">
+                <div className="space-y-2">
+                  {tradingData.map((item, index) => (
+                    <div
+                      key={item.symbol}
+                      onClick={() => setSelectedSymbol(item.symbol)}
+                      className={`p-3 rounded-lg border transition-colors cursor-pointer hover:bg-gray-50 ${
+                        selectedSymbol === item.symbol
+                          ? "bg-blue-50 border-blue-200"
+                          : "bg-white border-gray-200"
+                      }`}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-900">
+                              {item.symbol}
+                            </span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {item.price}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between mt-1">
+                            <span className="text-xs text-gray-500">
+                              Vol: {item.volume}
+                            </span>
+                            <span
+                              className={`text-xs font-medium ${
+                                item.change.startsWith("+")
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {item.change}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           </div>
         </div>
