@@ -2,6 +2,7 @@
 
 import { AppSidebar } from "@/components/app-sidebar";
 import TradingChart from "@/components/trading-chart";
+import { TradingItem, TradingListItem } from "@/components/trading-list-item";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -17,6 +18,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import axios from "axios";
 import { useEffect, useState } from "react";
 
 export default function Page() {
@@ -27,126 +29,29 @@ export default function Page() {
     "Candlestick"
   );
 
-  const [tradingData] = useState([
+  const [tradingData] = useState<TradingItem[]>([
     {
-      symbol: "BTC",
-      price: "$67,245",
-      change: "+2.35%",
-      volume: "1.2B",
-      status: "active",
+      symbol: "1000BONKUSDC",
+      total_trades: 21,
+      total_pnl: -81311.83,
+      avg_pnl: -3871.991904761905,
+      total_quantity: -40879284,
     },
     {
-      symbol: "ETH",
-      price: "$3,456",
-      change: "-1.24%",
-      volume: "892M",
-      status: "active",
+      symbol: "1000BONKUSDT",
+      total_trades: 19,
+      total_pnl: -243719.34999999998,
+      avg_pnl: -12827.334210526315,
+      total_quantity: -120085262,
     },
     {
-      symbol: "AAPL",
-      price: "$189.50",
-      change: "+0.87%",
-      volume: "45.6M",
-      status: "active",
+      symbol: "HYPEUSDT",
+      total_trades: 28,
+      total_pnl: 549.3700000000003,
+      avg_pnl: 19.620357142857156,
+      total_quantity: -71642,
     },
-    {
-      symbol: "TSLA",
-      price: "$256.78",
-      change: "+3.21%",
-      volume: "89.3M",
-      status: "active",
-    },
-    {
-      symbol: "NVDA",
-      price: "$876.32",
-      change: "+5.67%",
-      volume: "134.7M",
-      status: "active",
-    },
-    {
-      symbol: "MSFT",
-      price: "$412.18",
-      change: "-0.45%",
-      volume: "23.8M",
-      status: "active",
-    },
-    {
-      symbol: "GOOGL",
-      price: "$165.43",
-      change: "+1.89%",
-      volume: "34.2M",
-      status: "active",
-    },
-    {
-      symbol: "AMZN",
-      price: "$178.92",
-      change: "+2.14%",
-      volume: "56.7M",
-      status: "active",
-    },
-    {
-      symbol: "META",
-      price: "$487.65",
-      change: "-0.78%",
-      volume: "41.9M",
-      status: "active",
-    },
-    {
-      symbol: "NFLX",
-      price: "$598.43",
-      change: "+4.32%",
-      volume: "12.4M",
-      status: "active",
-    },
-    {
-      symbol: "AMD",
-      price: "$143.87",
-      change: "+2.98%",
-      volume: "67.8M",
-      status: "active",
-    },
-    {
-      symbol: "INTC",
-      price: "$28.45",
-      change: "-1.67%",
-      volume: "89.2M",
-      status: "active",
-    },
-    {
-      symbol: "INTC",
-      price: "$28.45",
-      change: "-1.67%",
-      volume: "89.2M",
-      status: "active",
-    },
-    {
-      symbol: "INTC",
-      price: "$28.45",
-      change: "-1.67%",
-      volume: "89.2M",
-      status: "active",
-    },
-    {
-      symbol: "INTC",
-      price: "$28.45",
-      change: "-1.67%",
-      volume: "89.2M",
-      status: "active",
-    },
-    {
-      symbol: "INTC",
-      price: "$28.45",
-      change: "-1.67%",
-      volume: "89.2M",
-      status: "active",
-    },
-    {
-      symbol: "INTC",
-      price: "$28.45",
-      change: "-1.67%",
-      volume: "89.2M",
-      status: "active",
-    },
+    // ... rest of your data
   ]);
 
   // Simulate data fetching
@@ -184,8 +89,18 @@ export default function Page() {
       setCandleData(mockCandleData);
     };
 
+    const handleGetTickerList = async () => {
+      const resp = await axios.get("/api/trades");
+      console.log(resp.data);
+    };
+
     fetchData();
+    handleGetTickerList();
   }, [selectedSymbol]);
+
+  const handleSymbolSelect = (symbol: string) => {
+    setSelectedSymbol(symbol);
+  };
 
   return (
     <SidebarProvider>
@@ -270,42 +185,12 @@ export default function Page() {
               <ScrollArea className="h-[70vh] w-full pr-4">
                 <div className="space-y-2">
                   {tradingData.map((item, index) => (
-                    <div
+                    <TradingListItem
                       key={item.symbol}
-                      onClick={() => setSelectedSymbol(item.symbol)}
-                      className={`p-3 rounded-lg border transition-colors cursor-pointer hover:bg-gray-50 ${
-                        selectedSymbol === item.symbol
-                          ? "bg-blue-50 border-blue-200"
-                          : "bg-white border-gray-200"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-gray-900">
-                              {item.symbol}
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {item.price}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between mt-1">
-                            <span className="text-xs text-gray-500">
-                              Vol: {item.volume}
-                            </span>
-                            <span
-                              className={`text-xs font-medium ${
-                                item.change.startsWith("+")
-                                  ? "text-green-600"
-                                  : "text-red-600"
-                              }`}
-                            >
-                              {item.change}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                      item={item}
+                      isSelected={selectedSymbol === item.symbol}
+                      onClick={handleSymbolSelect}
+                    />
                   ))}
                 </div>
               </ScrollArea>
