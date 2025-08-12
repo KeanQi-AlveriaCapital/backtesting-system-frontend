@@ -11,6 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -18,10 +19,16 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useResponsiveHeight } from "@/hooks/use-responsive-height";
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function Page() {
+  const scrollHeight = useResponsiveHeight();
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id");
+
   const [priceData, setPriceData] = useState<any[]>([]);
   const [candleData, setCandleData] = useState<any[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState("BTC");
@@ -29,30 +36,7 @@ export default function Page() {
     "Candlestick"
   );
 
-  const [tradingData] = useState<TradingItem[]>([
-    {
-      symbol: "1000BONKUSDC",
-      total_trades: 21,
-      total_pnl: -81311.83,
-      avg_pnl: -3871.991904761905,
-      total_quantity: -40879284,
-    },
-    {
-      symbol: "1000BONKUSDT",
-      total_trades: 19,
-      total_pnl: -243719.34999999998,
-      avg_pnl: -12827.334210526315,
-      total_quantity: -120085262,
-    },
-    {
-      symbol: "HYPEUSDT",
-      total_trades: 28,
-      total_pnl: 549.3700000000003,
-      avg_pnl: 19.620357142857156,
-      total_quantity: -71642,
-    },
-    // ... rest of your data
-  ]);
+  const [tradingData, setTradingData] = useState<TradingItem[]>([]);
 
   // Simulate data fetching
   useEffect(() => {
@@ -89,13 +73,13 @@ export default function Page() {
       setCandleData(mockCandleData);
     };
 
-    const handleGetTickerList = async () => {
-      const resp = await axios.get("/api/trades");
-      console.log(resp.data);
+    const handleGetStrategy = async () => {
+      //TODO: POST /api/trades to get data
+      setTradingData([]);
     };
 
     fetchData();
-    handleGetTickerList();
+    handleGetStrategy();
   }, [selectedSymbol]);
 
   const handleSymbolSelect = (symbol: string) => {
@@ -138,25 +122,7 @@ export default function Page() {
                 Trading Dashboard
               </h1>
               <div className="flex gap-4">
-                <select
-                  value={selectedSymbol}
-                  onChange={(e) => setSelectedSymbol(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="BTC">Bitcoin</option>
-                  <option value="ETH">Ethereum</option>
-                  <option value="AAPL">Apple</option>
-                </select>
-                <select
-                  value={chartType}
-                  onChange={(e) =>
-                    setChartType(e.target.value as "Line" | "Candlestick")
-                  }
-                  className="px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  <option value="Line">Line Chart</option>
-                  <option value="Candlestick">Candlestick</option>
-                </select>
+                <Button>Performance Metrics</Button>
               </div>
             </div>
           </div>
@@ -182,7 +148,10 @@ export default function Page() {
             {/* Trading List Section - Responsive positioning */}
             <div className="bg-white rounded-lg shadow-md p-4 lg:w-80 lg:order-2 order-first lg:order-last">
               <h3 className="text-lg font-semibold mb-4">Market Watch</h3>
-              <ScrollArea className="h-[70vh] w-full pr-4">
+              <ScrollArea
+                className="w-full pr-4"
+                style={{ height: scrollHeight }}
+              >
                 <div className="space-y-2">
                   {tradingData.map((item, index) => (
                     <TradingListItem
