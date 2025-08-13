@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { GroupedTrades } from "@/lib/trades";
 import { ApiCandleData, transformCandleData } from "@/lib/candles";
+import ProtectedRoute from "@/components/protected-route";
 
 export default function Page() {
   const scrollHeight = useResponsiveHeight();
@@ -106,88 +107,90 @@ export default function Page() {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Building Your Application
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-        </header>
-
-        {/* Main content area - this will fill remaining space */}
-        <div className="flex flex-1 flex-col p-4 pt-0">
-          {/* Header with controls */}
-          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h1 className="text-2xl font-bold text-gray-900">
-                Trading Dashboard
-              </h1>
-              <div className="flex gap-4">
-                <Button>Performance Metrics</Button>
-              </div>
+    <ProtectedRoute>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+            <div className="flex items-center gap-2 px-4">
+              <SidebarTrigger className="-ml-1" />
+              <Separator
+                orientation="vertical"
+                className="mr-2 data-[orientation=vertical]:h-4"
+              />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem className="hidden md:block">
+                    <BreadcrumbLink href="#">
+                      Building Your Application
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
-          </div>
+          </header>
 
-          <div className="flex flex-col lg:flex-row gap-4 flex-1">
-            {/* Chart Section */}
-            <div className="bg-white rounded-lg shadow-md p-4 flex-1 flex flex-col lg:order-1">
-              <h2 className="text-xl font-semibold mb-4">
-                {selectedSymbol} Price Chart
-              </h2>
-              <div className="flex-1 min-h-[400px]">
-                <TradingChart
-                  data={candleData}
-                  type={"Candlestick"}
-                  showVolume={true}
-                  tradeData={groupedTrades[selectedSymbol]}
-                  width="100%"
-                  height="100%"
-                  theme="light"
-                  className="w-full h-full"
-                />
-              </div>
-            </div>
-
-            {/* Trading List Section - Responsive positioning */}
-            <div className="bg-white rounded-lg shadow-md p-4 lg:w-80 lg:order-2 order-first lg:order-last">
-              <h3 className="text-lg font-semibold mb-4">Market Watch</h3>
-              <ScrollArea
-                className="w-full pr-4"
-                style={{ height: scrollHeight }}
-              >
-                <div className="space-y-2">
-                  {tradingData.map((item, index) => (
-                    <TradingListItem
-                      key={item.symbol}
-                      item={item}
-                      isSelected={selectedSymbol === item.symbol}
-                      onClick={handleSymbolSelect}
-                    />
-                  ))}
+          {/* Main content area - this will fill remaining space */}
+          <div className="flex flex-1 flex-col p-4 pt-0">
+            {/* Header with controls */}
+            <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Trading Dashboard
+                </h1>
+                <div className="flex gap-4">
+                  <Button>Performance Metrics</Button>
                 </div>
-              </ScrollArea>
+              </div>
+            </div>
+
+            <div className="flex flex-col lg:flex-row gap-4 flex-1">
+              {/* Chart Section */}
+              <div className="bg-white rounded-lg shadow-md p-4 flex-1 flex flex-col lg:order-1">
+                <h2 className="text-xl font-semibold mb-4">
+                  {selectedSymbol} Price Chart
+                </h2>
+                <div className="flex-1 min-h-[400px]">
+                  <TradingChart
+                    data={candleData}
+                    type={"Candlestick"}
+                    showVolume={true}
+                    tradeData={groupedTrades[selectedSymbol]}
+                    width="100%"
+                    height="100%"
+                    theme="light"
+                    className="w-full h-full"
+                  />
+                </div>
+              </div>
+
+              {/* Trading List Section - Responsive positioning */}
+              <div className="bg-white rounded-lg shadow-md p-4 lg:w-80 lg:order-2 order-first lg:order-last">
+                <h3 className="text-lg font-semibold mb-4">Market Watch</h3>
+                <ScrollArea
+                  className="w-full pr-4"
+                  style={{ height: scrollHeight }}
+                >
+                  <div className="space-y-2">
+                    {tradingData.map((item, index) => (
+                      <TradingListItem
+                        key={item.symbol}
+                        item={item}
+                        isSelected={selectedSymbol === item.symbol}
+                        onClick={handleSymbolSelect}
+                      />
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </div>
           </div>
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+        </SidebarInset>
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }
