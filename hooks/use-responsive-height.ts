@@ -7,7 +7,7 @@ export function useResponsiveHeight() {
   useEffect(() => {
     const updateHeight = () => {
       if (window.innerWidth >= 1280) {
-        setHeight("calc(100vh - 200px)");
+        setHeight("calc(100vh - 250px)");
       } else {
         setHeight("40vh");
       }

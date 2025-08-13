@@ -4,35 +4,42 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   createChart,
+  createSeriesMarkers, // Important: Import this function
   ColorType,
   IChartApi,
   ISeriesApi,
-  LineData,
   CandlestickData,
-  LineSeries,
   CandlestickSeries,
+  HistogramSeries,
+  LineSeries,
   LineSeriesOptions,
   CandlestickSeriesOptions,
+  Time,
+  SeriesMarker,
 } from "lightweight-charts";
+import { TradeData } from "@/lib/trades";
 
 interface ChartDataLine {
   time: string;
   value: number;
 }
 
-interface ChartDataCandlestick {
-  time: string;
+export interface ChartDataCandlestick {
+  time: Time; // Use Time type in v5
   open: number;
   high: number;
   low: number;
   close: number;
+  volume?: number;
 }
 
 interface TradingChartProps {
-  data: ChartDataLine[] | ChartDataCandlestick[];
+  data: ChartDataCandlestick[];
   type?: "Line" | "Candlestick";
-  width?: string | number; // Can be "90%" or 800
-  height?: string | number; // Can be "400px" or 400
+  showVolume?: boolean;
+  tradeData: TradeData[];
+  width?: string | number;
+  height?: string | number;
   theme?: "light" | "dark";
   customOptions?: Partial<LineSeriesOptions | CandlestickSeriesOptions>;
   className?: string;
@@ -41,6 +48,8 @@ interface TradingChartProps {
 export default function TradingChart({
   data,
   type = "Line",
+  showVolume = false,
+  tradeData = [],
   width = "100%",
   height = 400,
   theme = "light",
@@ -50,6 +59,8 @@ export default function TradingChart({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<any> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<any> | null>(null);
+  const markersRef = useRef<any>(null); // Reference for markers primitive
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
 
   const updateSize = useCallback(() => {
@@ -59,7 +70,6 @@ export default function TradingChart({
     const rect = container.getBoundingClientRect();
 
     const newWidth = rect.width;
-    // Fix: Use the actual container height instead of trying to parse the height prop
     const newHeight = rect.height;
 
     if (newWidth !== chartSize.width || newHeight !== chartSize.height) {
@@ -77,16 +87,13 @@ export default function TradingChart({
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
-    // Initial size calculation
     updateSize();
 
-    // Theme colors
     const backgroundColor = theme === "dark" ? "#1a1a1a" : "white";
     const textColor = theme === "dark" ? "#ffffff" : "black";
     const gridColor = theme === "dark" ? "#2a2a2a" : "#f0f3fa";
     const borderColor = theme === "dark" ? "#555555" : "#cccccc";
 
-    // Create chart
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: backgroundColor },
@@ -113,7 +120,6 @@ export default function TradingChart({
 
     chartRef.current = chart;
 
-    // Create series based on type
     if (type === "Candlestick") {
       const defaultCandlestickOptions: Partial<CandlestickSeriesOptions> = {
         upColor: "#4caf50",
@@ -131,22 +137,113 @@ export default function TradingChart({
 
       seriesRef.current = candlestickSeries;
       candlestickSeries.setData(data as CandlestickData[]);
-    } else {
-      const defaultLineOptions: Partial<LineSeriesOptions> = {
-        color: "#2196F3",
-        lineWidth: 2,
-      };
 
-      const lineSeries = chart.addSeries(LineSeries, {
-        ...defaultLineOptions,
-        ...customOptions,
-      });
+      // Add volume series if showVolume is true and data has volume
+      if (showVolume && data.some((d) => d.volume !== undefined)) {
+        const volumeSeries = chart.addSeries(HistogramSeries, {
+          color:
+            theme === "dark"
+              ? "rgba(76, 175, 80, 0.3)"
+              : "rgba(76, 175, 80, 0.5)",
+          priceFormat: {
+            type: "volume",
+          },
+          priceScaleId: "volume",
+        });
 
-      seriesRef.current = lineSeries;
-      lineSeries.setData(data as LineData[]);
+        volumeSeries.priceScale().applyOptions({
+          scaleMargins: {
+            top: 0.7,
+            bottom: 0,
+          },
+        });
+
+        const volumeData = data
+          .filter((d) => d.volume !== undefined)
+          .map((d) => ({
+            time: d.time as Time,
+            value: d.volume!,
+            color:
+              d.close >= d.open
+                ? theme === "dark"
+                  ? "rgba(76, 175, 80, 0.6)"
+                  : "rgba(76, 175, 80, 0.8)"
+                : theme === "dark"
+                ? "rgba(244, 67, 54, 0.6)"
+                : "rgba(244, 67, 54, 0.8)",
+          }));
+
+        volumeSeries.setData(volumeData);
+        volumeSeriesRef.current = volumeSeries;
+      }
+
+      // Add trade markers using v5 API - CORRECT WAY
+      if (tradeData && tradeData.length > 0) {
+        const markers: SeriesMarker<Time>[] = tradeData.flatMap((trade) => {
+          const entryTime = Math.floor(
+            new Date(trade.entryTime.trim()).getTime() / 1000
+          ) as Time;
+          const exitTime = Math.floor(
+            new Date(trade.exitTime.trim()).getTime() / 1000
+          ) as Time;
+
+          return [
+            {
+              time: entryTime,
+              position: trade.quantity > 0 ? "belowBar" : "aboveBar",
+              color: trade.quantity > 0 ? "#2196F3" : "#FF9800",
+              shape: trade.quantity > 0 ? "arrowUp" : "arrowDown",
+              text: `Entry: $${trade.entryPrice.toFixed(3)} | Qty: ${Math.abs(
+                trade.quantity
+              ).toLocaleString()}`,
+            },
+            {
+              time: exitTime,
+              position: trade.quantity > 0 ? "aboveBar" : "belowBar",
+              color: trade.pnlAmount > 0 ? "#4CAF50" : "#F44336",
+              shape: trade.quantity > 0 ? "arrowDown" : "arrowUp",
+              text: `Exit: $${trade.exitPrice.toFixed(
+                3
+              )} | PnL: $${trade.pnlAmount.toFixed(
+                2
+              )} (${trade.pnlPercentage.toFixed(2)}%)`,
+            },
+          ];
+        });
+
+        // Create markers using the v5 API
+        markersRef.current = createSeriesMarkers(candlestickSeries, markers);
+      }
+
+      // Add stop loss lines
+      if (tradeData && tradeData.length > 0) {
+        tradeData.forEach((trade) => {
+          const stopLossLine = chart.addSeries(LineSeries, {
+            color: "#FF5722",
+            lineWidth: 1,
+            lineStyle: 2,
+            crosshairMarkerVisible: false,
+            lastValueVisible: false,
+            priceLineVisible: false,
+          });
+
+          const entryTime = Math.floor(
+            new Date(trade.entryTime.trim()).getTime() / 1000
+          ) as Time;
+          const exitTime = Math.floor(
+            new Date(trade.exitTime.trim()).getTime() / 1000
+          ) as Time;
+
+          const stopLossData = [
+            { time: entryTime, value: trade.stoplossPrice },
+            { time: exitTime, value: trade.stoplossPrice },
+          ];
+
+          stopLossLine.setData(stopLossData);
+        });
+      }
     }
 
-    // ResizeObserver for modern browsers
     let resizeObserver: ResizeObserver | null = null;
 
     if (window.ResizeObserver) {
@@ -155,11 +252,9 @@ export default function TradingChart({
       });
       resizeObserver.observe(chartContainerRef.current);
     } else {
-      // Fallback for older browsers
       window.addEventListener("resize", updateSize);
     }
 
-    // Cleanup
     return () => {
       if (resizeObserver) {
         resizeObserver.disconnect();
@@ -168,9 +263,8 @@ export default function TradingChart({
       }
       chart.remove();
     };
-  }, [data, type, theme, customOptions, updateSize]);
+  }, [data, type, theme, customOptions, showVolume, tradeData, updateSize]);
 
-  // Container style
   const containerStyle: React.CSSProperties = {
     width: typeof width === "string" ? width : `${width}px`,
     height: typeof height === "string" ? height : `${height}px`,

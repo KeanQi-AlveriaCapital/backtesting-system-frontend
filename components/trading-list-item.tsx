@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 
 export interface TradingItem {
   symbol: string;
-  total_trades: number;
-  total_pnl: number;
-  avg_pnl: number;
-  total_quantity: number;
+  totalTrades: number;
+  totalPnl: number;
+  avgPnl: number;
+  totalQuantity: number;
 }
 
 interface TradingListItemProps {
@@ -46,7 +46,7 @@ export function TradingListItem({
     return value.toString();
   };
 
-  const isProfitable = item.total_pnl > 0;
+  const isProfitable = item.totalPnl > 0;
 
   return (
     <div
@@ -67,20 +67,20 @@ export function TradingListItem({
                 isProfitable ? "text-green-600" : "text-red-600"
               )}
             >
-              {isProfitable ? "+" : ""}${formatPnL(item.total_pnl)}
+              {isProfitable ? "+" : ""}${formatPnL(item.totalPnl)}
             </span>
           </div>
           <div className="flex items-center justify-between mt-1">
             <span className="text-xs text-gray-500">
-              {item.total_trades} trades
+              {item.totalTrades} trades
             </span>
             <span
               className={cn(
                 "text-xs font-medium",
-                item.avg_pnl > 0 ? "text-green-600" : "text-red-600"
+                item.avgPnl > 0 ? "text-green-600" : "text-red-600"
               )}
             >
-              Avg: {item.avg_pnl > 0 ? "+" : ""}${formatPnL(item.avg_pnl)}
+              Avg: {item.avgPnl > 0 ? "+" : ""}${formatPnL(item.avgPnl)}
             </span>
           </div>
           {/* <div className="flex items-center justify-center mt-1">

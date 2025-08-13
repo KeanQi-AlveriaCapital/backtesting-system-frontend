@@ -1,7 +1,7 @@
 "use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import TradingChart from "@/components/trading-chart";
+import TradingChart, { ChartDataCandlestick } from "@/components/trading-chart";
 import { TradingItem, TradingListItem } from "@/components/trading-list-item";
 import {
   Breadcrumb,
@@ -23,63 +23,82 @@ import { useResponsiveHeight } from "@/hooks/use-responsive-height";
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { GroupedTrades } from "@/lib/trades";
+import { ApiCandleData, transformCandleData } from "@/lib/candles";
 
 export default function Page() {
   const scrollHeight = useResponsiveHeight();
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
 
-  const [priceData, setPriceData] = useState<any[]>([]);
-  const [candleData, setCandleData] = useState<any[]>([]);
-  const [selectedSymbol, setSelectedSymbol] = useState("BTC");
-  const [chartType, setChartType] = useState<"Line" | "Candlestick">(
-    "Candlestick"
-  );
+  const [candleData, setCandleData] = useState<ChartDataCandlestick[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState("");
 
   const [tradingData, setTradingData] = useState<TradingItem[]>([]);
+  const [groupedTrades, setGroupedTrades] = useState<GroupedTrades>({});
+
+  useEffect(() => {
+    const handleGetStrategy = async () => {
+      const resp = await axios.post("/api/trades", {
+        id,
+        action: "result",
+        user: "easy",
+        password: "123",
+      });
+      const summary = resp.data.data.summary;
+      const groupedTrades = resp.data.data.groupedTrades;
+      setTradingData(summary);
+      setGroupedTrades(groupedTrades);
+    };
+    handleGetStrategy();
+  }, []);
 
   // Simulate data fetching
   useEffect(() => {
-    // Your data fetching logic here
-    // This could connect to your Python backtesting API
-    const fetchData = async () => {
-      // Mock data - replace with your API call
-      const mockPriceData = Array.from({ length: 50 }, (_, i) => ({
-        time: new Date(Date.now() - (49 - i) * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
-        value: 50000 + Math.random() * 10000 - 5000,
-      }));
+    if (selectedSymbol) {
+      const selectedGroupedTrade = groupedTrades[selectedSymbol];
+      const entryTimes = selectedGroupedTrade.map(
+        (trade) => new Date(trade.entryTime.trim())
+      );
+      const exitTimes = selectedGroupedTrade.map(
+        (trade) => new Date(trade.exitTime.trim())
+      );
 
-      const mockCandleData = Array.from({ length: 30 }, (_, i) => {
-        const basePrice = 50000 + Math.random() * 10000 - 5000;
-        const open = basePrice + Math.random() * 1000 - 500;
-        const close = basePrice + Math.random() * 1000 - 500;
-        const high = Math.max(open, close) + Math.random() * 500;
-        const low = Math.min(open, close) - Math.random() * 500;
+      const earliestEntry = new Date(
+        Math.min(...entryTimes.map((date) => date.getTime()))
+      )
+        .toISOString()
+        .slice(0, 16)
+        .replace("T", " ");
 
-        return {
-          time: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000)
-            .toISOString()
-            .split("T")[0],
-          open,
-          high,
-          low,
-          close,
-        };
-      });
+      const latestExit = new Date(
+        Math.max(...exitTimes.map((date) => date.getTime()))
+      )
+        .toISOString()
+        .slice(0, 16)
+        .replace("T", " ");
 
-      setPriceData(mockPriceData);
-      setCandleData(mockCandleData);
-    };
+      // Direct API call
+      const fetchCandle = async () => {
+        try {
+          const response = await axios.post("/api/candles", {
+            table: "c4h",
+            ticker: selectedSymbol.trim(),
+            dateFrom: earliestEntry,
+            dateTo: latestExit,
+          });
+          const selectedCandle: ApiCandleData[] = response.data.data.data;
 
-    const handleGetStrategy = async () => {
-      //TODO: POST /api/trades to get data
-      setTradingData([]);
-    };
+          const transformedCandle: ChartDataCandlestick[] =
+            transformCandleData(selectedCandle);
+          setCandleData(transformedCandle);
+        } catch (error) {
+          console.error("Error fetching candle:", error);
+        }
+      };
 
-    fetchData();
-    handleGetStrategy();
+      fetchCandle();
+    }
   }, [selectedSymbol]);
 
   const handleSymbolSelect = (symbol: string) => {
@@ -135,8 +154,10 @@ export default function Page() {
               </h2>
               <div className="flex-1 min-h-[400px]">
                 <TradingChart
-                  data={chartType === "Line" ? priceData : candleData}
-                  type={chartType}
+                  data={candleData}
+                  type={"Candlestick"}
+                  showVolume={true}
+                  tradeData={groupedTrades[selectedSymbol]}
                   width="100%"
                   height="100%"
                   theme="light"
