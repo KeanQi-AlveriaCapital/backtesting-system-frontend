@@ -2,6 +2,16 @@ export interface GroupedTrades {
   [key: string]: TradeData[];
 }
 
+export type Timeframe =
+  | "c1m"
+  | "c2m"
+  | "c3m"
+  | "c5m"
+  | "c10m"
+  | "c15m"
+  | "c1h"
+  | "c4h";
+
 export interface TradeData {
   id: number;
   symbol: string;
