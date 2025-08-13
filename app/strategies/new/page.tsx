@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { timeframeLabels, timeframes } from "@/lib/trades";
 
 export default function NewStrategyPage() {
   const [range, setRange] = useState<DateRange | undefined>(undefined);
@@ -64,9 +65,22 @@ export default function NewStrategyPage() {
             {/* Header with controls */}
             <div className="bg-white rounded-lg shadow-md p-4 mb-4">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">
-                  New Strategy
-                </h1>
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="dates" className="px-1">
+                    Strategy Name
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder="Enter name"
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (value > 0) {
+                        // Handle valid input
+                        console.log(value);
+                      }
+                    }}
+                  />
+                </div>
                 <div className="flex gap-4">
                   <div className="flex flex-col gap-3">
                     <Label htmlFor="dates" className="px-1">
@@ -92,16 +106,15 @@ export default function NewStrategyPage() {
                     </Label>
                     <Select>
                       <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select a fruit" />
+                        <SelectValue placeholder="Select a timeframe" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectLabel>Fruits</SelectLabel>
-                          <SelectItem value="apple">Apple</SelectItem>
-                          <SelectItem value="banana">Banana</SelectItem>
-                          <SelectItem value="blueberry">Blueberry</SelectItem>
-                          <SelectItem value="grapes">Grapes</SelectItem>
-                          <SelectItem value="pineapple">Pineapple</SelectItem>
+                          {timeframes.map((timeframe) => (
+                            <SelectItem key={timeframe} value={timeframe}>
+                              {timeframeLabels[timeframe]}
+                            </SelectItem>
+                          ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>

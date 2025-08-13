@@ -12,6 +12,28 @@ export type Timeframe =
   | "c1h"
   | "c4h";
 
+export const timeframes: Timeframe[] = [
+  "c1m",
+  "c2m",
+  "c3m",
+  "c5m",
+  "c10m",
+  "c15m",
+  "c1h",
+  "c4h",
+];
+
+export const timeframeLabels: Record<Timeframe, string> = {
+  c1m: "1 Minute",
+  c2m: "2 Minutes",
+  c3m: "3 Minutes",
+  c5m: "5 Minutes",
+  c10m: "10 Minutes",
+  c15m: "15 Minutes",
+  c1h: "1 Hour",
+  c4h: "4 Hours",
+};
+
 export interface TradeData {
   id: number;
   symbol: string;
