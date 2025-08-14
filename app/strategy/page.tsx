@@ -48,6 +48,7 @@ export default function Page() {
       });
       const summary = resp.data.data.summary;
       const groupedTrades = resp.data.data.groupedTrades;
+      console.log(summary, groupedTrades);
       setTradingData(summary);
       setGroupedTrades(groupedTrades);
     };
@@ -131,6 +132,7 @@ export default function Page() {
                       Strategies
                     </BreadcrumbLink>
                   </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
                     <BreadcrumbPage>{id}</BreadcrumbPage>
                   </BreadcrumbItem>

@@ -24,6 +24,7 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -31,19 +32,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { timeframeLabels, timeframes } from "@/lib/trades";
 import { toast } from "sonner";
-import {
-  Save,
-  Play,
-  TestTube,
-  Rocket,
-  BarChart3,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle2,
-} from "lucide-react";
+import { Save, Play, Rocket, BarChart3, TrendingUp } from "lucide-react";
 import AdvancedCodeEditor from "@/components/advance-code-editor";
 
 interface StrategyConfig {
@@ -53,19 +44,6 @@ interface StrategyConfig {
   dateRange: DateRange | undefined;
   code: string;
   language: string;
-  commission: number;
-  slippage: number;
-}
-
-interface ValidationResult {
-  isValid: boolean;
-  errors: Array<{
-    line: number;
-    column: number;
-    message: string;
-    severity: "error" | "warning" | "info";
-  }>;
-  suggestions?: string[];
 }
 
 export default function NewStrategyPage() {
@@ -76,15 +54,10 @@ export default function NewStrategyPage() {
     timeframe: "",
     dateRange: undefined,
     code: "",
-    language: "python",
-    commission: 0.001, // 0.1%
-    slippage: 0.0005, // 0.05%
+    language: "cpp",
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [strategyStatus, setStrategyStatus] = useState<
-    "draft" | "valid" | "error"
-  >("draft");
 
   const handleCodeChange = (code: string, language: string) => {
     setStrategyConfig((prev) => ({
@@ -92,9 +65,6 @@ export default function NewStrategyPage() {
       code,
       language,
     }));
-
-    // Reset status when code changes
-    setStrategyStatus("draft");
   };
 
   const handleSaveStrategy = async () => {
@@ -139,7 +109,6 @@ export default function NewStrategyPage() {
         dateRange: range,
         createdAt: new Date().toISOString(),
         version: "1.0.0",
-        status: strategyStatus,
       };
 
       // Simulate API call with realistic delay
@@ -171,75 +140,37 @@ export default function NewStrategyPage() {
       return;
     }
 
-    if (strategyStatus !== "valid") {
-      toast.error(
-        "Please test and validate your strategy before running backtest"
-      );
-      return;
-    }
-
-    setIsLoading(true);
+    // setIsLoading(true);
 
     try {
-      // Simulate running backtest with progress updates
-      toast.info("Initializing backtest...", { duration: 1000 });
+      // // Simulate running backtest with progress updates
+      // toast.info("Initializing backtest...", { duration: 1000 });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.info("Loading historical data...", { duration: 1000 });
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
+      // toast.info("Loading historical data...", { duration: 1000 });
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      toast.info("Running strategy simulation...", { duration: 1000 });
+      // await new Promise((resolve) => setTimeout(resolve, 1500));
+      // toast.info("Running strategy simulation...", { duration: 1000 });
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      toast.info("Calculating performance metrics...", { duration: 1000 });
+      // await new Promise((resolve) => setTimeout(resolve, 2000));
+      // toast.info("Calculating performance metrics...", { duration: 1000 });
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      toast.success("Backtest completed! 🚀 Redirecting to results...", {
-        description:
-          "Your strategy has been successfully backtested with historical data.",
-      });
+      // toast.success("Backtest completed! 🚀 Redirecting to results...", {
+      //   description:
+      //     "Your strategy has been successfully backtested with historical data.",
+      // });
 
-      // Here you would navigate to results page
-      // router.push(`/strategy?id=${strategyId}`);
+      // // Here you would navigate to results page
+      // // router.push(`/strategy?id=${strategyId}`);
+
+      console.log(strategyConfig);
     } catch (error) {
       toast.error("Backtest failed. Please try again.");
       console.error("Backtest error:", error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const getStatusIcon = () => {
-    switch (strategyStatus) {
-      case "valid":
-        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
-      case "error":
-        return <AlertTriangle className="h-4 w-4 text-red-600" />;
-      default:
-        return <TestTube className="h-4 w-4 text-gray-600" />;
-    }
-  };
-
-  const getStatusText = () => {
-    switch (strategyStatus) {
-      case "valid":
-        return "Validated";
-      case "error":
-        return "Errors Found";
-      default:
-        return "Draft";
-    }
-  };
-
-  const getStatusVariant = () => {
-    switch (strategyStatus) {
-      case "valid":
-        return "default" as const;
-      case "error":
-        return "destructive" as const;
-      default:
-        return "secondary" as const;
     }
   };
 
@@ -279,13 +210,6 @@ export default function NewStrategyPage() {
                     <Rocket className="h-5 w-5" />
                     Strategy Configuration
                   </CardTitle>
-                  <Badge
-                    variant={getStatusVariant()}
-                    className="flex items-center gap-1"
-                  >
-                    {getStatusIcon()}
-                    {getStatusText()}
-                  </Badge>
                 </div>
               </CardHeader>
               <CardContent>
@@ -347,6 +271,16 @@ export default function NewStrategyPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
+                          <SelectLabel>Crypto</SelectLabel>
+                          {timeframes.map((timeframe) => (
+                            <SelectItem
+                              key={timeframe}
+                              value={"bnf." + timeframe}
+                            >
+                              {timeframeLabels[timeframe]}
+                            </SelectItem>
+                          ))}
+                          <SelectLabel>Stocks</SelectLabel>
                           {timeframes.map((timeframe) => (
                             <SelectItem key={timeframe} value={timeframe}>
                               {timeframeLabels[timeframe]}
@@ -407,7 +341,6 @@ export default function NewStrategyPage() {
                     <Button
                       onClick={handleRunBacktest}
                       disabled={isLoading || !strategyConfig.code.trim()}
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                     >
                       <Play className="h-4 w-4" />
                       {isLoading ? "Running Backtest..." : "Run Backtest"}
@@ -419,7 +352,7 @@ export default function NewStrategyPage() {
 
             {/* Advanced Code Editor */}
             <AdvancedCodeEditor
-              defaultLanguage="python"
+              defaultLanguage="cpp"
               onChange={handleCodeChange}
               showToolbar={true}
             />
