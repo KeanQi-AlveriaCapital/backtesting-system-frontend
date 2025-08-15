@@ -1,15 +1,7 @@
 // app/api/trades/route.ts
 import { processTradeData } from "@/lib/trades";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import WebSocket from "ws";
-
-interface Result {
-  code: string;
-  id: string;
-  output_size: number;
-  tradelog: string;
-  user: string;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +14,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a promise to handle the WebSocket communication
     const result = await new Promise((resolve, reject) => {
       const ws = new WebSocket("wss://192.168.88.4:8080", {
         rejectUnauthorized: false,

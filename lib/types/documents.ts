@@ -6,7 +6,7 @@ export interface Strategy extends BaseDocument {
   name: string;
   userId: string;
   initialEquity: number;
-  timeframe: Timeframe;
+  timeframe: string;
   dateRange: {
     from: string;
     to: string;
@@ -23,4 +23,16 @@ export interface StrategyResults {
   sharpeRatio: number;
   trades: TradeData[];
   equityCurve: Array<{ date: string; equity: number }>;
+}
+
+export interface BacktestBody {
+  id: string;
+  action: "test" | "result" | "output";
+  type: "string";
+  language: "cpp" | "python";
+  from: string;
+  to: string;
+  user: string;
+  password: "123";
+  py: string;
 }

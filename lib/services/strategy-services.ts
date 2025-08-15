@@ -6,7 +6,6 @@ import {
   getDocuments,
   updateDocument,
   deleteDocument,
-  documentExists,
   QueryOptions,
 } from "../firestore";
 import { Strategy } from "../types/documents";

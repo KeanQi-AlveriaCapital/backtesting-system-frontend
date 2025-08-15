@@ -36,8 +36,11 @@ import { timeframeLabels, timeframes } from "@/lib/trades";
 import { toast } from "sonner";
 import { Save, Play, Rocket, BarChart3, TrendingUp } from "lucide-react";
 import AdvancedCodeEditor from "@/components/advance-code-editor";
+import axios from "axios";
+import { Strategy } from "@/lib/types/documents";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface StrategyConfig {
+export interface StrategyConfig {
   name: string;
   initialEquity: number;
   timeframe: string;
@@ -47,6 +50,7 @@ interface StrategyConfig {
 }
 
 export default function NewStrategyPage() {
+  const { user } = useAuth();
   const [range, setRange] = useState<DateRange | undefined>(undefined);
   const [strategyConfig, setStrategyConfig] = useState<StrategyConfig>({
     name: "",
@@ -140,35 +144,44 @@ export default function NewStrategyPage() {
       return;
     }
 
-    // setIsLoading(true);
+    const formatLocalDate = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const strategyBody = {
+      ...strategyConfig,
+      userId: user?.uid,
+      dateRange: range
+        ? {
+            from: formatLocalDate(range.from!),
+            to: formatLocalDate(range.to!),
+          }
+        : undefined,
+    };
+    setIsLoading(true);
 
     try {
-      // // Simulate running backtest with progress updates
-      // toast.info("Initializing backtest...", { duration: 1000 });
+      const resp = await axios.post("/api/backtest", strategyBody);
+      console.log(resp);
 
-      // await new Promise((resolve) => setTimeout(resolve, 1000));
-      // toast.info("Loading historical data...", { duration: 1000 });
-
-      // await new Promise((resolve) => setTimeout(resolve, 1500));
-      // toast.info("Running strategy simulation...", { duration: 1000 });
-
-      // await new Promise((resolve) => setTimeout(resolve, 2000));
-      // toast.info("Calculating performance metrics...", { duration: 1000 });
-
-      // await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // toast.success("Backtest completed! 🚀 Redirecting to results...", {
-      //   description:
-      //     "Your strategy has been successfully backtested with historical data.",
-      // });
-
-      // // Here you would navigate to results page
-      // // router.push(`/strategy?id=${strategyId}`);
-
-      console.log(strategyConfig);
+      toast.success("Backtest completed! 🚀");
     } catch (error) {
-      toast.error("Backtest failed. Please try again.");
       console.error("Backtest error:", error);
+
+      if (axios.isAxiosError(error) && error.response?.data) {
+        const errorData = error.response.data;
+
+        // Show the compilation error details
+        toast.error("Backtest Failed", {
+          description: errorData.details || "Unknown error occurred",
+          duration: 10000, // Show longer for detailed errors
+        });
+      } else {
+        toast.error("Backtest failed. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
