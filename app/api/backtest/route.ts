@@ -1,4 +1,8 @@
-import { createStrategy } from "@/lib/services/strategy-services";
+// app/api/backtest/route.ts
+import {
+  createStrategy,
+  updateStrategy,
+} from "@/lib/services/strategy-services";
 import { BacktestBody, Strategy } from "@/lib/types/documents";
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
@@ -39,37 +43,75 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const strategy: Strategy = {
-      initialEquity: body.initialEquity,
-      dateRange: {
-        from: body.dateRange.from,
-        to: body.dateRange.to,
-      },
-      name: body.name,
-      status: "running",
-      timeframe: body.timeframe,
-      userId: body.userId,
-    };
-
     let strategyId: string;
-    try {
-      strategyId = await createStrategy(strategy);
-    } catch (error) {
-      return NextResponse.json(
-        {
-          error: "Failed to create strategy in database",
-          details:
-            error instanceof Error ? error.message : "Unknown database error",
+
+    if (body.updateExisting && body.strategyId) {
+      // Update existing strategy
+      strategyId = body.strategyId;
+
+      const strategyUpdates: Partial<Strategy> = {
+        initialEquity: body.initialEquity,
+        dateRange: {
+          from: body.dateRange.from,
+          to: body.dateRange.to,
         },
-        { status: 500 }
-      );
+        name: body.name,
+        status: "running",
+        timeframe: body.timeframe,
+        lastRunAt: new Date().toISOString(),
+        runCount: body.runCount || 1,
+        // Clear previous results/errors
+        results: null,
+        error: null,
+      };
+
+      try {
+        await updateStrategy(strategyId, strategyUpdates);
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: "Failed to update strategy in database",
+            details:
+              error instanceof Error ? error.message : "Unknown database error",
+          },
+          { status: 500 }
+        );
+      }
+    } else {
+      // Create new strategy (shouldn't happen in normal flow, but keep as fallback)
+      const strategy: Strategy = {
+        initialEquity: body.initialEquity,
+        dateRange: {
+          from: body.dateRange.from,
+          to: body.dateRange.to,
+        },
+        name: body.name,
+        status: "running",
+        timeframe: body.timeframe,
+        userId: body.userId,
+        lastRunAt: new Date().toISOString(),
+        runCount: 1,
+      };
+
+      try {
+        strategyId = await createStrategy(strategy);
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: "Failed to create strategy in database",
+            details:
+              error instanceof Error ? error.message : "Unknown database error",
+          },
+          { status: 500 }
+        );
+      }
     }
 
     if (!strategyId || !body.code) {
       return NextResponse.json({
         success: true,
         strategyId,
-        message: "Strategy created successfully (no code file)",
+        message: "Strategy updated successfully (no code file)",
         warning:
           "Code file was not created - missing strategy ID or code content",
       });
@@ -78,38 +120,60 @@ export async function POST(request: NextRequest) {
     try {
       const data: BacktestBody = {
         action: "test",
-        from: strategy.dateRange.from,
-        to: strategy.dateRange.to,
+        from: body.dateRange.from,
+        to: body.dateRange.to,
         id: strategyId,
         language: body.language,
         py: body.code,
         type: body.timeframe,
-        user: strategy.userId,
+        user: body.userId,
         password: "123",
       };
 
-      await submitBacktestJob(data, strategy, strategyId, body.code);
+      // Build strategy object for the websocket function
+      const strategyForWS: Strategy = {
+        initialEquity: body.initialEquity,
+        dateRange: {
+          from: body.dateRange.from,
+          to: body.dateRange.to,
+        },
+        name: body.name,
+        status: "running",
+        timeframe: body.timeframe,
+        userId: body.userId,
+      };
+
+      await submitBacktestJob(data, strategyForWS, strategyId, body.code);
 
       const filePath = path.join(
         process.cwd(),
         "code",
-        strategy.userId,
+        body.userId,
         `${strategyId}.h`
       );
 
       return NextResponse.json({
         success: true,
         strategyId,
-        message: "Strategy created and code file saved successfully",
+        message: body.updateExisting
+          ? "Strategy updated and backtest restarted successfully"
+          : "Strategy created and backtest started successfully",
         filePath,
       });
     } catch (error) {
+      // Update strategy status to failed
+      await updateStrategy(strategyId, {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
       return NextResponse.json(
         {
-          error: "Strategy created but failed to save code file",
+          error: body.updateExisting
+            ? "Strategy updated but backtest failed to start"
+            : "Strategy created but backtest failed to start",
           strategyId,
-          details:
-            error instanceof Error ? error.message : "Unknown file error",
+          details: error instanceof Error ? error.message : "Unknown error",
         },
         { status: 500 }
       );
@@ -156,7 +220,7 @@ async function submitBacktestJob(
     ws.on("message", async (data) => {
       try {
         const parsedData = JSON.parse(data.toString());
-
+        console.log(parsedData);
         if (parsedData.status === "ok") {
           clearTimeout(timeout);
           timeout = setTimeout(() => {
@@ -173,7 +237,10 @@ async function submitBacktestJob(
             };
             ws.send(JSON.stringify(message));
           }, 5000);
-        } else if (parsedData.status === "processing") {
+        } else if (
+          parsedData.status === "processing" ||
+          parsedData.status === "completed"
+        ) {
           clearTimeout(timeout);
           ws.close();
 

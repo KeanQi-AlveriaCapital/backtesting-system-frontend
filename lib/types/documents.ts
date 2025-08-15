@@ -11,8 +11,11 @@ export interface Strategy extends BaseDocument {
     from: string;
     to: string;
   };
-  status: "running" | "completed" | "failed";
-  results?: StrategyResults;
+  status: "draft" | "running" | "completed" | "failed";
+  error?: string | null;
+  results?: StrategyResults | null;
+  lastRunAt?: string;
+  runCount?: number;
 }
 
 export interface StrategyResults {

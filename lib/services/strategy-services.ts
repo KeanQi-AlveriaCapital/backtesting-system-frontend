@@ -1,4 +1,4 @@
-// lib/services/strategyService.ts
+// lib/services/strategy-services.ts
 import { COLLECTIONS } from "../constants/collection";
 import {
   createDocument,
@@ -26,11 +26,18 @@ export const getUserStrategies = async (
   options?: {
     status?: Strategy["status"];
     limit?: number;
+    orderBy?: "createdAt" | "updatedAt" | "name";
+    orderDirection?: "asc" | "desc";
   }
 ): Promise<Strategy[]> => {
   const queryOptions: QueryOptions = {
     where: [{ field: "userId", operator: "==", value: userId }],
-    orderBy: [{ field: "createdAt", direction: "desc" }],
+    orderBy: [
+      {
+        field: options?.orderBy || "updatedAt",
+        direction: options?.orderDirection || "desc",
+      },
+    ],
   };
 
   if (options?.status) {
@@ -57,4 +64,17 @@ export const updateStrategy = async (
 
 export const deleteStrategy = async (id: string): Promise<void> => {
   return deleteDocument(COLLECTIONS.STRATEGIES, id);
+};
+
+// Additional helper functions
+export const getStrategyCount = async (userId: string): Promise<number> => {
+  const strategies = await getUserStrategies(userId);
+  return strategies.length;
+};
+
+export const getStrategiesByStatus = async (
+  userId: string,
+  status: Strategy["status"]
+): Promise<Strategy[]> => {
+  return getUserStrategies(userId, { status });
 };
