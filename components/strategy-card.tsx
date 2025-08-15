@@ -20,9 +20,6 @@ import {
   Edit,
   Trash2,
   Copy,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -42,20 +39,10 @@ export function StrategyCard({
 
   const getStatusConfig = (status: Strategy["status"]) => {
     switch (status) {
-      case "draft":
-        return {
-          badge: (
-            <Badge variant="secondary" className="gap-1">
-              <FileText className="h-3 w-3" />
-              Draft
-            </Badge>
-          ),
-          color: "border-gray-200",
-        };
       case "running":
         return {
           badge: (
-            <Badge variant="default" className="gap-1">
+            <Badge variant="secondary" className="gap-1">
               <Clock className="h-3 w-3" />
               Running
             </Badge>
@@ -82,6 +69,16 @@ export function StrategyCard({
           ),
           color: "border-red-200 bg-red-50",
         };
+      default:
+        return {
+          badge: (
+            <Badge variant="outline" className="gap-1">
+              <FileText className="h-3 w-3" />
+              Unknown
+            </Badge>
+          ),
+          color: "border-gray-200",
+        };
     }
   };
 
@@ -90,7 +87,11 @@ export function StrategyCard({
   const formatDate = (dateString: string) => {
     if (!dateString) return "Not set";
     try {
-      return new Date(dateString).toLocaleDateString();
+      return new Date(dateString).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
     } catch {
       return dateString;
     }
@@ -105,8 +106,33 @@ export function StrategyCard({
     }).format(amount);
   };
 
+  const formatTimeframe = (timeframe: string) => {
+    if (!timeframe) return "Not set";
+
+    const timeframeMap: Record<string, string> = {
+      c1m: "1 Minute",
+      c2m: "2 Minutes",
+      c3m: "3 Minutes",
+      c5m: "5 Minutes",
+      c10m: "10 Minutes",
+      c15m: "15 Minutes",
+      c1h: "1 Hour",
+      c4h: "4 Hours",
+    };
+
+    // Handle "bnf.c4h" format
+    const cleanTimeframe = timeframe.includes(".")
+      ? timeframe.split(".")[1]
+      : timeframe;
+    return timeframeMap[cleanTimeframe] || timeframe;
+  };
+
   const handleView = () => {
-    router.push(`/strategy?id=${strategy.id}`);
+    if (strategy.status === "completed") {
+      router.push(`/strategy?id=${strategy.id}`);
+    } else {
+      toast.info("Strategy must be completed to view results");
+    }
   };
 
   const handleEdit = () => {
@@ -149,11 +175,6 @@ export function StrategyCard({
             </CardTitle>
             <div className="flex items-center gap-2 mt-1">
               {statusConfig.badge}
-              {strategy.runCount && strategy.runCount > 1 && (
-                <Badge variant="outline" className="text-xs">
-                  {strategy.runCount} runs
-                </Badge>
-              )}
             </div>
           </div>
 
@@ -164,7 +185,10 @@ export function StrategyCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleView}>
+              <DropdownMenuItem
+                onClick={handleView}
+                disabled={strategy.status !== "completed"}
+              >
                 <Play className="h-4 w-4" />
                 View Results
               </DropdownMenuItem>
@@ -208,7 +232,9 @@ export function StrategyCard({
           </div>
           <div>
             <span className="text-muted-foreground">Timeframe:</span>
-            <div className="font-medium">{strategy.timeframe || "Not set"}</div>
+            <div className="font-medium">
+              {formatTimeframe(strategy.timeframe)}
+            </div>
           </div>
         </div>
 
@@ -216,7 +242,7 @@ export function StrategyCard({
         <div>
           <span className="text-muted-foreground text-sm">Period:</span>
           <div className="text-sm font-medium">
-            {strategy.dateRange.from && strategy.dateRange.to
+            {strategy.dateRange?.from && strategy.dateRange?.to
               ? `${formatDate(strategy.dateRange.from)} - ${formatDate(
                   strategy.dateRange.to
                 )}`
@@ -224,52 +250,47 @@ export function StrategyCard({
           </div>
         </div>
 
-        {/* Results Summary (only for completed strategies) */}
-        {strategy.status === "completed" && strategy.results && (
+        {/* Status Message */}
+        {strategy.status === "running" && (
           <div className="pt-2 border-t">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-1">
-                <DollarSign className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground">Total PnL:</span>
-                <span
-                  className={`font-medium ${
-                    strategy.results.totalPnl >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {strategy.results.totalPnl >= 0 ? "+" : ""}
-                  {formatCurrency(strategy.results.totalPnl)}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground">Win Rate:</span>
-                <span className="font-medium">
-                  {(strategy.results.winRate * 100).toFixed(1)}%
-                </span>
-              </div>
+            <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded">
+              <span className="font-medium">Status: </span>
+              <span>Backtest is currently running...</span>
             </div>
           </div>
         )}
 
-        {/* Error Message (for failed strategies) */}
-        {strategy.status === "failed" && strategy.error && (
+        {strategy.status === "failed" && (
           <div className="pt-2 border-t">
             <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-              <span className="font-medium">Error: </span>
-              <span className="truncate block">{strategy.error}</span>
+              <span className="font-medium">Status: </span>
+              <span>Backtest failed. Click "View Results" for details.</span>
+            </div>
+          </div>
+        )}
+
+        {strategy.status === "completed" && (
+          <div className="pt-2 border-t">
+            <div className="text-sm text-green-600 bg-green-50 p-2 rounded">
+              <span className="font-medium">Status: </span>
+              <span>
+                Backtest completed successfully. Click "View Results" to see
+                performance.
+              </span>
             </div>
           </div>
         )}
 
         {/* Last Updated */}
         <div className="pt-2 border-t text-xs text-muted-foreground">
-          {strategy.lastRunAt
-            ? `Last run: ${new Date(strategy.lastRunAt).toLocaleString()}`
-            : strategy.updatedAt
-            ? `Updated: ${new Date(strategy.updatedAt).toLocaleString()}`
+          {strategy.updatedAt
+            ? `Updated: ${new Date(
+                strategy.updatedAt.toDate?.() || strategy.updatedAt
+              ).toLocaleString()}`
             : strategy.createdAt
-            ? `Created: ${new Date(strategy.createdAt).toLocaleString()}`
+            ? `Created: ${new Date(
+                strategy.createdAt.toDate?.() || strategy.createdAt
+              ).toLocaleString()}`
             : ""}
         </div>
 
@@ -280,16 +301,20 @@ export function StrategyCard({
             size="sm"
             onClick={handleView}
             className="flex-1"
+            disabled={strategy.status !== "completed"}
           >
-            View
+            <Play className="h-4 w-4 mr-1" />
+            View Results
           </Button>
           <Button
-            variant={strategy.status === "draft" ? "default" : "outline"}
+            variant="outline"
             size="sm"
-            onClick={strategy.status === "draft" ? handleEdit : handleRun}
+            onClick={handleRun}
             className="flex-1"
+            disabled={strategy.status === "running"}
           >
-            {strategy.status === "draft" ? "Complete" : "Run"}
+            <Play className="h-4 w-4 mr-1" />
+            {strategy.status === "running" ? "Running..." : "Run Test"}
           </Button>
         </div>
       </CardContent>

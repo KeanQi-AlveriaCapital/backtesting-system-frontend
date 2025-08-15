@@ -1,3 +1,4 @@
+// components/advance-code-editor.tsx
 "use client";
 
 import Editor from "@monaco-editor/react";
@@ -12,7 +13,18 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Copy, Download, RotateCcw, Code, Upload } from "lucide-react";
+import {
+  Copy,
+  Download,
+  RotateCcw,
+  Code,
+  Upload,
+  Maximize2,
+  Minimize2,
+  Settings,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface CodeEditorProps {
@@ -28,6 +40,8 @@ interface CodeEditorProps {
 const LANGUAGE_OPTIONS = [
   { value: "python", label: "Python", extension: ".py", icon: "🐍" },
   { value: "cpp", label: "C++", extension: ".cpp", icon: "⚡" },
+  { value: "javascript", label: "JavaScript", extension: ".js", icon: "🟨" },
+  { value: "typescript", label: "TypeScript", extension: ".ts", icon: "🔷" },
 ] as const;
 
 const DEFAULT_PYTHON_CODE = `# Your backtesting strategy
@@ -110,24 +124,153 @@ strategy = TradingStrategy(initial_capital=STRATEGY_CONFIG['initial_capital'])
 # print(f"Total Return: {((results['total'].iloc[-1] / results['total'].iloc[0]) - 1) * 100:.2f}%")
 `;
 
+const DEFAULT_CPP_CODE = `#include <iostream>
+#include <vector>
+#include <map>
+#include <string>
+#include <algorithm>
+#include <cmath>
+
+// Trading Strategy Implementation
+class TradingStrategy {
+private:
+    double initial_capital;
+    std::vector<std::map<std::string, double>> positions;
+    
+public:
+    TradingStrategy(double capital = 100000.0) : initial_capital(capital) {}
+    
+    // Generate trading signals based on moving average crossover
+    std::vector<int> generateSignals(const std::vector<double>& prices) {
+        std::vector<int> signals(prices.size(), 0);
+        
+        if (prices.size() < 100) return signals;
+        
+        int short_window = 40;
+        int long_window = 100;
+        
+        // Calculate moving averages
+        std::vector<double> short_ma(prices.size(), 0.0);
+        std::vector<double> long_ma(prices.size(), 0.0);
+        
+        // Short MA
+        for (size_t i = short_window - 1; i < prices.size(); ++i) {
+            double sum = 0.0;
+            for (int j = 0; j < short_window; ++j) {
+                sum += prices[i - j];
+            }
+            short_ma[i] = sum / short_window;
+        }
+        
+        // Long MA
+        for (size_t i = long_window - 1; i < prices.size(); ++i) {
+            double sum = 0.0;
+            for (int j = 0; j < long_window; ++j) {
+                sum += prices[i - j];
+            }
+            long_ma[i] = sum / long_window;
+        }
+        
+        // Generate signals
+        for (size_t i = long_window; i < prices.size(); ++i) {
+            if (short_ma[i] > long_ma[i] && short_ma[i-1] <= long_ma[i-1]) {
+                signals[i] = 1;  // Buy signal
+            } else if (short_ma[i] < long_ma[i] && short_ma[i-1] >= long_ma[i-1]) {
+                signals[i] = -1; // Sell signal
+            }
+        }
+        
+        return signals;
+    }
+    
+    // Backtest the strategy
+    double backtest(const std::vector<double>& prices) {
+        auto signals = generateSignals(prices);
+        
+        double cash = initial_capital;
+        double shares = 0.0;
+        double commission = 0.001; // 0.1%
+        
+        for (size_t i = 0; i < prices.size(); ++i) {
+            if (signals[i] == 1 && cash > prices[i]) {
+                // Buy
+                double cost = prices[i] * (1 + commission);
+                shares += cash / cost;
+                cash = 0.0;
+            } else if (signals[i] == -1 && shares > 0) {
+                // Sell
+                double proceeds = shares * prices[i] * (1 - commission);
+                cash += proceeds;
+                shares = 0.0;
+            }
+        }
+        
+        // Final portfolio value
+        double final_value = cash + (shares * prices.back());
+        return (final_value - initial_capital) / initial_capital * 100.0; // Return percentage
+    }
+    
+    void printResults(double return_pct) {
+        std::cout << "Strategy Results:" << std::endl;
+        std::cout << "Initial Capital: $" << initial_capital << std::endl;
+        std::cout << "Total Return: " << return_pct << "%" << std::endl;
+    }
+};
+
+// Main function
+int main() {
+    TradingStrategy strategy(100000.0);
+    
+    // Example price data (replace with real data)
+    std::vector<double> prices = {
+        100.0, 101.5, 102.3, 101.8, 103.2, 104.1, 103.5, 105.2,
+        106.8, 105.9, 107.3, 108.5, 107.2, 109.1, 110.3, 108.7
+        // Add more price data here...
+    };
+    
+    double return_pct = strategy.backtest(prices);
+    strategy.printResults(return_pct);
+    
+    return 0;
+}
+`;
+
 export default function AdvancedCodeEditor({
-  defaultLanguage = "python",
-  defaultValue = DEFAULT_PYTHON_CODE,
+  defaultLanguage = "cpp",
+  defaultValue,
   onChange,
   onRun,
-  height,
+  height = "600px",
   className,
   showToolbar = true,
 }: CodeEditorProps) {
-  const [code, setCode] = useState(defaultValue);
+  // Determine initial code based on language and defaultValue
+  const getInitialCode = () => {
+    if (defaultValue) return defaultValue;
+    return defaultLanguage === "python"
+      ? DEFAULT_PYTHON_CODE
+      : DEFAULT_CPP_CODE;
+  };
+
+  const [code, setCode] = useState(getInitialCode());
   const [language, setLanguage] = useState(defaultLanguage);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [wordWrap] = useState(true);
-  const [minimap] = useState(true);
+  const [isFullscreen] = useState(false);
+  const [wordWrap, setWordWrap] = useState(true);
+  const [minimap, setMinimap] = useState(true);
+  const [fontSize] = useState(16);
+  const [theme] = useState<"light" | "dark">("light");
 
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+
+  // Update code when defaultValue changes (for editing existing strategies)
+  useEffect(() => {
+    if (defaultValue && defaultValue !== code) {
+      setCode(defaultValue);
+      onChange?.(defaultValue, language);
+    }
+  }, [defaultValue]);
 
   const handleEditorChange = (value: string | undefined) => {
     const newValue = value || "";
@@ -136,8 +279,21 @@ export default function AdvancedCodeEditor({
   };
 
   const handleLanguageChange = (newLanguage: string) => {
-    setLanguage(newLanguage as any);
-    onChange?.(code, newLanguage);
+    const lang = newLanguage as typeof defaultLanguage;
+    setLanguage(lang);
+
+    // If no custom code and switching language, load default template
+    if (
+      !defaultValue &&
+      (code === DEFAULT_PYTHON_CODE || code === DEFAULT_CPP_CODE || code === "")
+    ) {
+      const newCode =
+        lang === "python" ? DEFAULT_PYTHON_CODE : DEFAULT_CPP_CODE;
+      setCode(newCode);
+      onChange?.(newCode, lang);
+    } else {
+      onChange?.(code, lang);
+    }
   };
 
   const handleCopy = async () => {
@@ -167,7 +323,7 @@ export default function AdvancedCodeEditor({
   const handleUpload = () => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".py,.cpp,.txt,.h";
+    input.accept = ".py,.cpp,.txt,.h,.js,.ts";
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -185,9 +341,11 @@ export default function AdvancedCodeEditor({
   };
 
   const handleReset = () => {
-    setCode(defaultValue);
-    onChange?.(defaultValue, language);
-    toast.success("Code reset to default");
+    const defaultCode =
+      language === "python" ? DEFAULT_PYTHON_CODE : DEFAULT_CPP_CODE;
+    setCode(defaultCode);
+    onChange?.(defaultCode, language);
+    toast.success("Code reset to default template");
   };
 
   const handleRun = () => {
@@ -203,8 +361,8 @@ export default function AdvancedCodeEditor({
       handleRun();
     });
 
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      toast.success("Auto-save triggered");
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
+      handleDownload();
     });
 
     // Enhanced editor options
@@ -222,11 +380,8 @@ export default function AdvancedCodeEditor({
       parameterHints: { enabled: true },
       suggestSelection: "first",
       wordWrap: wordWrap ? "on" : "off",
+      fontSize: fontSize,
     });
-  };
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
   };
 
   return (
@@ -244,6 +399,11 @@ export default function AdvancedCodeEditor({
             <CardTitle className="text-lg flex items-center gap-2">
               <Code className="h-5 w-5" />
               Strategy Code Editor
+              {defaultValue && (
+                <span className="text-sm font-normal text-gray-500">
+                  (Loaded from server)
+                </span>
+              )}
             </CardTitle>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -264,6 +424,28 @@ export default function AdvancedCodeEditor({
                 </SelectContent>
               </Select>
 
+              {/* Settings */}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setWordWrap(!wordWrap)}
+                  title="Toggle word wrap"
+                >
+                  <Eye className={`h-4 w-4 ${wordWrap ? "" : "opacity-50"}`} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMinimap(!minimap)}
+                  title="Toggle minimap"
+                >
+                  <Settings
+                    className={`h-4 w-4 ${minimap ? "" : "opacity-50"}`}
+                  />
+                </Button>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex items-center gap-1">
                 <Button variant="outline" size="sm" onClick={handleUpload}>
@@ -279,22 +461,45 @@ export default function AdvancedCodeEditor({
                   <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
+
+              {/* Run Button */}
+              {onRun && (
+                <Button onClick={handleRun} size="sm">
+                  ▶️ Run
+                </Button>
+              )}
             </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span>Lines: {code.split("\n").length}</span>
+            <span>Characters: {code.length}</span>
+            <span>Language: {language.toUpperCase()}</span>
+            <span>Font: {fontSize}px</span>
+            {defaultValue && (
+              <span className="text-blue-600 font-medium">
+                📁 Loaded from file
+              </span>
+            )}
           </div>
         </CardHeader>
       )}
 
       <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-        <div className="border-t flex-1">
+        <div
+          className="border-t flex-1"
+          style={{ height: isFullscreen ? "calc(100vh - 200px)" : height }}
+        >
           <Editor
-            height={"100%"}
+            height="100%"
             language={language}
             value={code}
             onChange={handleEditorChange}
             onMount={handleEditorDidMount}
-            theme={"light"}
+            theme={theme === "dark" ? "vs-dark" : "light"}
             options={{
-              fontSize: 16,
+              fontSize: fontSize,
               fontFamily:
                 "JetBrains Mono, Fira Code, Consolas, Monaco, monospace",
               lineNumbers: "on",
@@ -302,6 +507,7 @@ export default function AdvancedCodeEditor({
               scrollBeyondLastLine: false,
               automaticLayout: true,
               minimap: { enabled: minimap },
+              wordWrap: wordWrap ? "on" : "off",
 
               // Enhanced autocomplete
               wordBasedSuggestions: "allDocuments",
@@ -315,7 +521,6 @@ export default function AdvancedCodeEditor({
               acceptSuggestionOnCommitCharacter: true,
               acceptSuggestionOnEnter: "on",
               tabCompletion: "on",
-              wordWrap: wordWrap ? "on" : "off",
 
               // Code features
               folding: true,
@@ -348,10 +553,40 @@ export default function AdvancedCodeEditor({
                 autoFindInSelection: "never",
                 seedSearchStringFromSelection: "always",
               },
+
+              // Performance
+              renderLineHighlight: "all",
+              renderValidationDecorations: "on",
+              renderWhitespace: "selection",
+              scrollbar: {
+                vertical: "visible",
+                horizontal: "visible",
+                useShadows: false,
+                verticalHasArrows: true,
+                horizontalHasArrows: true,
+              },
             }}
           />
         </div>
       </CardContent>
+
+      {/* Footer with shortcuts */}
+      {showToolbar && (
+        <div className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span>💡 Shortcuts:</span>
+              <span>Ctrl+Enter: Run</span>
+              <span>Ctrl+D: Download</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {language === "cpp" && <span>🛠️ C++ Mode</span>}
+              {language === "python" && <span>🐍 Python Mode</span>}
+              <span>Theme: {theme}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

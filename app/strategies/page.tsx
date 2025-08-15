@@ -140,7 +140,6 @@ export default function StrategiesPage() {
         status: "draft",
         userId: user.uid,
         runCount: 0,
-        results: undefined,
         error: undefined,
         lastRunAt: undefined,
       };

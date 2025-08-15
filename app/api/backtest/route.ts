@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
         lastRunAt: new Date().toISOString(),
         runCount: body.runCount || 1,
         // Clear previous results/errors
-        results: null,
         error: null,
       };
 
@@ -220,7 +219,6 @@ async function submitBacktestJob(
     ws.on("message", async (data) => {
       try {
         const parsedData = JSON.parse(data.toString());
-        console.log(parsedData);
         if (parsedData.status === "ok") {
           clearTimeout(timeout);
           timeout = setTimeout(() => {

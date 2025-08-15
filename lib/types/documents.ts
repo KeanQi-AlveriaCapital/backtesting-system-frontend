@@ -13,19 +13,8 @@ export interface Strategy extends BaseDocument {
   };
   status: "draft" | "running" | "completed" | "failed";
   error?: string | null;
-  results?: StrategyResults | null;
   lastRunAt?: string;
   runCount?: number;
-}
-
-export interface StrategyResults {
-  totalTrades: number;
-  totalPnl: number;
-  winRate: number;
-  maxDrawdown: number;
-  sharpeRatio: number;
-  trades: TradeData[];
-  equityCurve: Array<{ date: string; equity: number }>;
 }
 
 export interface BacktestBody {

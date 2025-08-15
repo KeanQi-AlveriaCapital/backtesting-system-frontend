@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import ProtectedRoute from "@/components/protected-route";
 import DateRangePicker from "@/components/date-range-picker";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { DateRange } from "react-day-picker";
 import {
   Select,
@@ -35,16 +35,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { timeframeLabels, timeframes } from "@/lib/trades";
 import { toast } from "sonner";
-import { Save, Play, Rocket, BarChart3, TrendingUp } from "lucide-react";
+import {
+  Save,
+  Play,
+  Rocket,
+  BarChart3,
+  TrendingUp,
+  Loader2,
+} from "lucide-react";
 import AdvancedCodeEditor from "@/components/advance-code-editor";
 import axios from "axios";
 import { Strategy } from "@/lib/types/documents";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  createStrategy,
-  updateStrategy,
-} from "@/lib/services/strategy-services";
-import { useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { updateStrategy } from "@/lib/services/strategy-services";
 
 export interface StrategyConfig {
   name: string;
@@ -58,9 +62,11 @@ export interface StrategyConfig {
 export default function NewStrategyPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editingId = searchParams.get("id");
+  const isEditing = !!editingId;
+
   const [range, setRange] = useState<DateRange | undefined>(undefined);
-  const [strategyId, setStrategyId] = useState<string | null>(null);
-  const [runCount, setRunCount] = useState(0);
   const [strategyConfig, setStrategyConfig] = useState<StrategyConfig>({
     name: "",
     initialEquity: 100000,
@@ -71,94 +77,76 @@ export default function NewStrategyPage() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isLoadingStrategy, setIsLoadingStrategy] = useState(isEditing);
+  const [existingStrategy, setExistingStrategy] = useState<Strategy | null>(
+    null
+  );
 
+  // Load existing strategy if editing
   useEffect(() => {
-    const generateStrategyId = async () => {
-      if (!user?.uid) return;
+    const loadExistingStrategy = async () => {
+      if (!isEditing || !editingId || !user?.uid) return;
 
       try {
-        setIsInitializing(true);
+        setIsLoadingStrategy(true);
 
-        // Check if there's already an ID in URL (user refreshed page)
-        const urlParams = new URLSearchParams(window.location.search);
-        const existingId = urlParams.get("id");
+        const response = await axios.get(`/api/code`, {
+          params: {
+            id: editingId,
+            userId: user.uid,
+          },
+        });
 
-        if (existingId) {
-          // Load existing strategy
-          try {
-            const response = await axios.get(`/api/strategies/${existingId}`);
-            const existingStrategy = response.data;
+        if (response.data.success) {
+          const { strategy, code, message } = response.data;
+          setExistingStrategy(strategy);
 
-            // Populate form with existing strategy data
-            setStrategyConfig({
-              name: existingStrategy.name,
-              initialEquity: existingStrategy.initialEquity,
-              timeframe: existingStrategy.timeframe,
-              dateRange:
-                existingStrategy.dateRange.from && existingStrategy.dateRange.to
-                  ? {
-                      from: new Date(existingStrategy.dateRange.from),
-                      to: new Date(existingStrategy.dateRange.to),
-                    }
-                  : undefined,
-              code: "", // Code would need to be loaded separately if stored
-              language: "cpp", // Default language
-            });
+          // Parse date range
+          const dateRange: DateRange = {
+            from: new Date(strategy.dateRange.from),
+            to: new Date(strategy.dateRange.to),
+          };
 
-            if (
-              existingStrategy.dateRange.from &&
-              existingStrategy.dateRange.to
-            ) {
-              setRange({
-                from: new Date(existingStrategy.dateRange.from),
-                to: new Date(existingStrategy.dateRange.to),
-              });
-            }
+          // Set form data
+          setStrategyConfig({
+            name: strategy.name,
+            initialEquity: strategy.initialEquity,
+            timeframe: strategy.timeframe,
+            dateRange: dateRange,
+            code: code || "", // Use fetched code or empty string
+            language: "cpp", // Default to cpp, you could store this in strategy if needed
+          });
 
-            setRunCount(existingStrategy.runCount || 0);
-            setStrategyId(existingId);
+          setRange(dateRange);
 
-            toast.success("Loaded existing strategy for editing");
-          } catch (error) {
-            console.error("Failed to load existing strategy:", error);
-            toast.error("Failed to load strategy. Creating new one...");
-            await createNewDraftStrategy();
+          if (message) {
+            toast.info(message);
+          } else {
+            toast.success("Strategy loaded successfully");
+          }
+        }
+      } catch (error) {
+        console.error("Error loading strategy:", error);
+        if (axios.isAxiosError(error)) {
+          if (error.response?.status === 404) {
+            toast.error("Strategy not found");
+            router.push("/strategies");
+          } else if (error.response?.status === 403) {
+            toast.error("You don't have permission to edit this strategy");
+            router.push("/strategies");
+          } else {
+            toast.error("Failed to load strategy");
           }
         } else {
-          await createNewDraftStrategy();
+          toast.error("Failed to load strategy");
         }
       } finally {
-        setIsInitializing(false);
+        setIsLoadingStrategy(false);
       }
     };
 
-    const createNewDraftStrategy = async () => {
-      const draftStrategy: Strategy = {
-        initialEquity: 100000,
-        dateRange: { from: "", to: "" },
-        name: "Untitled Strategy",
-        status: "draft",
-        timeframe: "",
-        userId: user?.uid || "",
-        runCount: 0,
-      };
-
-      const id = await createStrategy(draftStrategy);
-      setStrategyId(id);
-
-      // Update URL to include strategy ID for future reference
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set("id", id);
-      window.history.replaceState({}, "", newUrl);
-
-      toast.success("Draft strategy created. Your work will be auto-saved.");
-    };
-
-    if (user?.uid) {
-      generateStrategyId();
-    }
-  }, [user?.uid]);
+    loadExistingStrategy();
+  }, [isEditing, editingId, user?.uid, router]);
 
   const handleCodeChange = (code: string, language: string) => {
     setStrategyConfig((prev) => ({
@@ -168,116 +156,9 @@ export default function NewStrategyPage() {
     }));
   };
 
-  // Auto-save strategy config changes (debounced)
-  const debouncedAutoSave = useCallback(
-    debounce(async (config: StrategyConfig, id: string) => {
-      if (!id || !config.name.trim()) return;
-
-      try {
-        const formatLocalDate = (date: Date): string => {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          return `${year}-${month}-${day}`;
-        };
-
-        await updateStrategy(id, {
-          name: config.name,
-          initialEquity: config.initialEquity,
-          timeframe: config.timeframe,
-          dateRange: config.dateRange
-            ? {
-                from: formatLocalDate(config.dateRange.from!),
-                to: formatLocalDate(config.dateRange.to!),
-              }
-            : { from: "", to: "" },
-        });
-      } catch (error) {
-        console.error("Auto-save failed:", error);
-      }
-    }, 2000),
-    []
-  );
-
-  useEffect(() => {
-    if (strategyId && strategyConfig.name.trim()) {
-      debouncedAutoSave(strategyConfig, strategyId);
-    }
-  }, [strategyConfig, strategyId, debouncedAutoSave]);
-
-  const handleSaveStrategy = async () => {
-    if (!strategyId) {
-      toast.error("Strategy not initialized. Please refresh the page.");
-      return;
-    }
-
-    // Enhanced validation
-    if (!strategyConfig.name.trim()) {
-      toast.error("Please enter a strategy name");
-      return;
-    }
-
-    if (strategyConfig.name.length < 3) {
-      toast.error("Strategy name must be at least 3 characters long");
-      return;
-    }
-
-    if (!strategyConfig.timeframe) {
-      toast.error("Please select a trading timeframe");
-      return;
-    }
-
-    if (!range?.from || !range?.to) {
-      toast.error("Please select a backtest date range");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const formatLocalDate = (date: Date): string => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-      };
-
-      await updateStrategy(strategyId, {
-        name: strategyConfig.name,
-        initialEquity: strategyConfig.initialEquity,
-        timeframe: strategyConfig.timeframe,
-        dateRange: {
-          from: formatLocalDate(range.from),
-          to: formatLocalDate(range.to),
-        },
-      });
-
-      toast.success("Strategy saved successfully! 🎉", {
-        description: `Saved "${strategyConfig.name}" with ${
-          strategyConfig.code.split("\n").length
-        } lines of code.`,
-      });
-    } catch (error) {
-      toast.error("Failed to save strategy. Please try again.");
-      console.error("Save error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleRunBacktest = async () => {
-    if (!strategyId) {
-      toast.error("Strategy not initialized. Please refresh the page.");
-      return;
-    }
-
     if (!strategyConfig.name.trim() || !strategyConfig.code.trim()) {
       toast.error("Please complete the strategy configuration first");
-      return;
-    }
-
-    if (!range?.from || !range?.to) {
-      toast.error("Please select a backtest date range");
       return;
     }
 
@@ -291,26 +172,23 @@ export default function NewStrategyPage() {
     const strategyBody = {
       ...strategyConfig,
       userId: user?.uid,
-      strategyId, // Pass existing strategy ID
-      updateExisting: true, // Flag to update instead of create
-      runCount: runCount + 1,
-      dateRange: {
-        from: formatLocalDate(range.from),
-        to: formatLocalDate(range.to),
-      },
+      dateRange: range
+        ? {
+            from: formatLocalDate(range.from!),
+            to: formatLocalDate(range.to!),
+          }
+        : undefined,
     };
-
     setIsLoading(true);
 
     try {
       const resp = await axios.post("/api/backtest", strategyBody);
-      console.log(resp);
+      toast.success("Backtest completed! 🚀");
 
-      setRunCount((prev) => prev + 1);
-      toast.success("Backtest submitted successfully! 🚀");
-
-      // Redirect to strategy page
-      router.push(`/strategy?id=${strategyId}`);
+      // Navigate to results page
+      if (resp.data.strategyId) {
+        router.push(`/strategy?id=${resp.data.strategyId}`);
+      }
     } catch (error) {
       console.error("Backtest error:", error);
 
@@ -328,15 +206,26 @@ export default function NewStrategyPage() {
     }
   };
 
-  if (isInitializing) {
+  // Show loading state while fetching strategy
+  if (isLoadingStrategy) {
     return (
       <ProtectedRoute>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p>Initializing strategy...</p>
-          </div>
-        </div>
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <div className="flex items-center justify-center h-96">
+              <div className="text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                <h2 className="text-lg font-semibold mb-2">
+                  Loading Strategy...
+                </h2>
+                <p className="text-gray-600">
+                  Please wait while we fetch your strategy details.
+                </p>
+              </div>
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
       </ProtectedRoute>
     );
   }
@@ -363,7 +252,7 @@ export default function NewStrategyPage() {
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
                     <BreadcrumbPage>
-                      {strategyConfig.name || "Create New Strategy"}
+                      {isEditing ? "Edit Strategy" : "Create New Strategy"}
                     </BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
@@ -372,32 +261,33 @@ export default function NewStrategyPage() {
           </header>
 
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            {/* Strategy Info Banner */}
-            {strategyId && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-sm text-blue-800">
-                  <span>📝</span>
-                  <span>
-                    Strategy ID:{" "}
-                    <code className="bg-blue-100 px-1 rounded">
-                      {strategyId}
-                    </code>
-                    {runCount > 0 && (
-                      <span className="ml-2">| Runs: {runCount}</span>
-                    )}
-                    <span className="ml-2">| Auto-save enabled</span>
-                  </span>
-                </div>
-              </div>
-            )}
-
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Rocket className="h-5 w-5" />
-                    Strategy Configuration
+                    {isEditing
+                      ? `Edit Strategy: ${existingStrategy?.name}`
+                      : "Strategy Configuration"}
                   </CardTitle>
+                  {isEditing && existingStrategy && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">Status:</span>
+                      <span
+                        className={`text-sm font-medium ${
+                          existingStrategy.status === "completed"
+                            ? "text-green-600"
+                            : existingStrategy.status === "running"
+                            ? "text-blue-600"
+                            : existingStrategy.status === "failed"
+                            ? "text-red-600"
+                            : "text-gray-600"
+                        }`}
+                      >
+                        {existingStrategy.status}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -518,24 +408,11 @@ export default function NewStrategyPage() {
 
                   <div className="flex flex-wrap gap-3">
                     <Button
-                      variant="outline"
-                      onClick={handleSaveStrategy}
-                      disabled={isLoading}
-                    >
-                      <Save className="h-4 w-4" />
-                      Save Strategy
-                    </Button>
-
-                    <Button
                       onClick={handleRunBacktest}
                       disabled={isLoading || !strategyConfig.code.trim()}
                     >
                       <Play className="h-4 w-4" />
-                      {isLoading
-                        ? "Running Backtest..."
-                        : runCount > 0
-                        ? "Re-run Backtest"
-                        : "Run Backtest"}
+                      {isLoading ? "Running Backtest..." : "Run Backtest"}
                     </Button>
                   </div>
                 </div>
@@ -545,6 +422,7 @@ export default function NewStrategyPage() {
             {/* Advanced Code Editor */}
             <AdvancedCodeEditor
               defaultLanguage="cpp"
+              defaultValue={strategyConfig.code} // This will be populated from the loaded strategy
               onChange={handleCodeChange}
               showToolbar={true}
             />
@@ -553,17 +431,4 @@ export default function NewStrategyPage() {
       </SidebarProvider>
     </ProtectedRoute>
   );
-}
-
-// Debounce utility function
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
-
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
 }
